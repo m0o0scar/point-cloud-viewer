@@ -33,6 +33,7 @@
 
       let container, stats;
       let camera, scene, renderer;
+      let material, points;
 
       init();
       animate();
@@ -52,27 +53,50 @@
         // PLY file
         const loader = new PLYLoader();
         loader.load('./models/test.ply', (geometry) => {
-          // Create material for the points with vertex colors enabled
-          var material = new THREE.PointsMaterial({
+          // Create custom shader material for the points with vertex colors enabled
+          material = new THREE.ShaderMaterial({
+            uniforms: {
+              pointSize: { value: 0.01 },
+              cameraPos: { value: camera.position },
+              minSize: { value: 0.005 },
+              maxSize: { value: 0.05 },
+            },
+            vertexShader: `
+              uniform vec3 cameraPos;
+              uniform float pointSize;
+              uniform float minSize;
+              uniform float maxSize;
+              varying vec4 vColor;
+
+              void main() {
+                vColor = vec4(color, 1.0);
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                float distance = length(mvPosition.xyz - cameraPos);
+                gl_PointSize = pointSize / distance;
+                gl_PointSize = clamp(gl_PointSize, minSize, maxSize);
+                gl_Position = projectionMatrix * mvPosition;
+              }
+            `,
+            fragmentShader: `
+              varying vec4 vColor;
+
+              void main() {
+                gl_FragColor = vColor;
+              }
+            `,
             vertexColors: true,
-            size: 0.01,
-            // sizeAttenuation: false,
           });
 
           // Load color data from geometry and set it as vertex colors attribute
           var colors = geometry.attributes.color;
           if (colors !== undefined) {
-            material.vertexColors = true;
             geometry.setAttribute('color', colors);
           }
 
           // Create points object and add it to the scene
-          var points = new THREE.Points(geometry, material);
+          points = new THREE.Points(geometry, material);
           scene.add(points);
         });
-
-        // Lights
-        scene.add(new THREE.HemisphereLight(0x443333, 0x111122));
 
         // renderer
         renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -99,12 +123,9 @@
 
       function animate() {
         requestAnimationFrame(animate);
-        render();
-        stats.update();
-      }
-
-      function render() {
         renderer.render(scene, camera);
+        material && material.uniforms.cameraPos.value.copy(camera.position);
+        stats.update();
       }
     </script>
   </body>
