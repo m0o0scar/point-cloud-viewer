@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>three.js webgl - PLY</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
+    />
+    <style>
+      body {
+        overflow: hidden;
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import Stats from 'three/addons/libs/stats.module.js';
+      import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+
+      let container, stats;
+      let camera, scene, renderer;
+
+      init();
+      animate();
+
+      function init() {
+        container = document.createElement('div');
+        document.body.appendChild(container);
+
+        const { innerWidth, innerHeight } = window;
+        const ratio = innerWidth / innerHeight;
+        camera = new THREE.PerspectiveCamera(35, ratio, 0.01, 100);
+        camera.position.z = 10;
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaaaaaa);
+
+        // PLY file
+        const loader = new PLYLoader();
+        loader.load('./models/test.ply', (geometry) => {
+          // Create material for the points with vertex colors enabled
+          var material = new THREE.PointsMaterial({
+            vertexColors: true,
+            size: 0.01,
+            // sizeAttenuation: false,
+          });
+
+          // Load color data from geometry and set it as vertex colors attribute
+          var colors = geometry.attributes.color;
+          if (colors !== undefined) {
+            material.vertexColors = true;
+            geometry.setAttribute('color', colors);
+          }
+
+          // Create points object and add it to the scene
+          var points = new THREE.Points(geometry, material);
+          scene.add(points);
+        });
+
+        // Lights
+        scene.add(new THREE.HemisphereLight(0x443333, 0x111122));
+
+        // renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+
+        // stats
+        stats = new Stats();
+        container.appendChild(stats.dom);
+
+        // resize
+        window.addEventListener('resize', onWindowResize);
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        render();
+        stats.update();
+      }
+
+      function render() {
+        renderer.render(scene, camera);
+      }
+    </script>
+  </body>
+</html>
